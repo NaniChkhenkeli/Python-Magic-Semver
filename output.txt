@@ -1,0 +1,31 @@
+Summary:
+Total Rooms: 1000
+Total Students: 10000
+
+
+Top 5 rooms with smallest average student age:
+Room ID: 661, Name: Room #661, Avg Age: 11.67
+Room ID: 913, Name: Room #913, Avg Age: 20.00
+Room ID: 111, Name: Room #111, Avg Age: 31.80
+Room ID: 957, Name: Room #957, Avg Age: 33.11
+Room ID: 773, Name: Room #773, Avg Age: 35.27
+
+Top 5 rooms with largest age difference among students:
+Room ID: 875, Name: Room #875, Age Difference: 116
+Room ID: 83, Name: Room #83, Age Difference: 115
+Room ID: 213, Name: Room #213, Age Difference: 115
+Room ID: 381, Name: Room #381, Age Difference: 115
+Room ID: 395, Name: Room #395, Age Difference: 115
+
+Rooms where students of different sexes live together: 990 rooms found
+Listing first 10 such rooms:
+Room ID: 0, Name: Room #0, Sex Types: 2
+Room ID: 1, Name: Room #1, Sex Types: 2
+Room ID: 2, Name: Room #2, Sex Types: 2
+Room ID: 3, Name: Room #3, Sex Types: 2
+Room ID: 4, Name: Room #4, Sex Types: 2
+Room ID: 5, Name: Room #5, Sex Types: 2
+Room ID: 7, Name: Room #7, Sex Types: 2
+Room ID: 8, Name: Room #8, Sex Types: 2
+Room ID: 9, Name: Room #9, Sex Types: 2
+Room ID: 10, Name: Room #10, Sex Types: 2
