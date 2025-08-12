@@ -33,3 +33,28 @@ Usage Example: python reader.py --students hw2/students.json --rooms hw2/rooms.j
 
 homework#3
 ===========================
+this script loads student and room data from JSON files into a MySQL database, runs queries to analyze data,
+and generates a summary report in 'output.txt'.
+
+Requirements:
+- Python 3.6+
+- MySQL Server
+- mysql-connector-python package
+- 'students.json' and 'rooms.json' in script folder
+
+Setup: 
+1. Install dependencies:
+   pip install mysql-connector-python
+2. Ensure MySQL server is running and database 'student_rooms_db' exists.
+3. Update DB_CONFIG in the script if needed.
+4. Place JSON files in the script directory.
+
+
+Output:
+Generates 'output.txt' with:
+- Total rooms and students
+- Top 5 rooms with smallest avg student age
+- Top 5 rooms with largest age difference
+- Rooms housing both male and female students
+
+
