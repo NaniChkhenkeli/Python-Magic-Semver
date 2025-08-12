@@ -20,18 +20,9 @@ $ python version_comparator.py
 
 homework#2
 ===========================
-in this homework i provide two scripts for organizing and exploring both json files. one script exports XML format, another JSON as an output. 
-both perform the following tasks:
-1. load data,
-2. combine data,
-3. export data.
-
-XML file parameters: 
---students: path to the students.json file. default is 'students.json'.
---rooms: path to the rooms.json file. default is 'rooms.json'.
---output: path to the output XML file. default is 'output.xml'.
-
-JSON file parameters: 
---students: path to the students.json file. default is 'students.json'.
---rooms: path to the rooms.json file. default is 'rooms.json'.
---output: path to the output JSON file. default is 'output.json'.
+in this homework script reads data from json files, groups students by room, counts the number of students per room and then outputs data in json or xml formats.
+Usage:
+JSON output - python reader.py --students hw2/students.json --rooms hw2/rooms.json --output result.json --format json. 
+XML output - python reader.py --students hw2/students.json --rooms hw2/rooms.json --output result.xml --format xml.
+Usage Example: python reader.py --students hw2/students.json --rooms hw2/rooms.json --output report.xml --format xml
+ - this will create xml containing all rooms with their assigned students. 
