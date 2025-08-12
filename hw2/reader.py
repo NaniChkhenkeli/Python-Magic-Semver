@@ -137,7 +137,6 @@ def parse_arguments():
 Examples:
   python reader.py --format json
   python3 reader.py --students hw2/students.json --rooms hw2/rooms.json --output result.xml --format xml
-  
         """
     )
     
@@ -158,13 +157,15 @@ Examples:
         help='Output file path (default: output.{format})'
     )
     
-    parser.add_argument(
-        '--format', '-f',
-        choices=['json', 'xml'],
-        default='json',
-        help='Output format: json or xml (default: json)'
-    )
     
+
+    parser.add_argument(
+    '--format', '-f',
+    choices=['json', 'xml'],
+    default='xml', 
+    help='Output format: json or xml (default: xml)'
+)
+
     return parser.parse_args()
 
 
