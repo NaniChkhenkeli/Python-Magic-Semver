@@ -3,23 +3,19 @@ import mysql.connector
 from datetime import datetime
 from pathlib import Path
 
-# --- Database Configuration ---
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "agvisto",
+    "password": "",
     "database": "student_rooms_db"
 }
 
-# --- File Paths ---
 BASE_DIR = Path(__file__).resolve().parent
 STUDENTS_FILE = BASE_DIR / "students.json"
 ROOMS_FILE = BASE_DIR / "rooms.json"
 
 
-# ===============================
 # Database Manager
-# ===============================
 class DatabaseManager:
     def __init__(self, config):
         self.conn = mysql.connector.connect(**config)
@@ -42,9 +38,7 @@ class DatabaseManager:
         self.conn.close()
 
 
-# ===============================
 # Schema Service
-# ===============================
 class SchemaService:
     def __init__(self, db: DatabaseManager):
         self.db = db
@@ -78,9 +72,7 @@ class SchemaService:
         self.db.commit()
 
 
-# ===============================
 # Data Loader
-# ===============================
 class DataLoader:
     @staticmethod
     def load_json(file_path):
@@ -88,9 +80,7 @@ class DataLoader:
             return json.load(f)
 
 
-# ===============================
 # Data Inserter
-# ===============================
 class DataInserter:
     def __init__(self, db: DatabaseManager):
         self.db = db
@@ -124,9 +114,7 @@ class DataInserter:
         self.db.commit()
 
 
-# ===============================
 # Query Service
-# ===============================
 class QueryService:
     def __init__(self, db: DatabaseManager):
         self.db = db
@@ -174,7 +162,6 @@ class QueryService:
         self.db.execute(query)
         return self.db.fetchall()
 
-    # --- Fixed Queries for Mixed Sex Rooms ---
     def count_rooms_with_mixed_sexes(self):
         query = """
             SELECT COUNT(*) 
@@ -211,15 +198,11 @@ class QueryService:
         return self.db.fetchall()
 
 
-# ===============================
-# Main
-# ===============================
 def main():
     db = DatabaseManager(DB_CONFIG)
     output_file = BASE_DIR / "output.txt"
 
     try:
-        # Reset schema and load data
         schema_service = SchemaService(db)
         schema_service.reset_schema()
 
@@ -233,7 +216,6 @@ def main():
 
         query_service = QueryService(db)
 
-        # Write results
         with open(output_file, "w", encoding="utf-8") as f:
             total_rooms, total_students = query_service.summary_rooms_and_students()[0]
             f.write(f"Summary:\nTotal Rooms: {total_rooms}\nTotal Students: {total_students}\n\n")
