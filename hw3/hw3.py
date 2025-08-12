@@ -1,6 +1,9 @@
 import json
 import mysql.connector
+from datetime import datetime
+from pathlib import Path
 
+# --- Database Configuration ---
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
@@ -8,10 +11,15 @@ DB_CONFIG = {
     "database": "student_rooms_db"
 }
 
-STUDENTS_FILE = "students.json"
-ROOMS_FILE = "rooms.json"
+# --- File Paths ---
+BASE_DIR = Path(__file__).resolve().parent
+STUDENTS_FILE = BASE_DIR / "students.json"
+ROOMS_FILE = BASE_DIR / "rooms.json"
 
 
+# ===============================
+# Database Manager
+# ===============================
 class DatabaseManager:
     def __init__(self, config):
         self.conn = mysql.connector.connect(**config)
@@ -34,11 +42,14 @@ class DatabaseManager:
         self.conn.close()
 
 
+# ===============================
+# Schema Service
+# ===============================
 class SchemaService:
     def __init__(self, db: DatabaseManager):
         self.db = db
 
-    def create_schema(self):
+    def reset_schema(self):
         self.db.execute("DROP TABLE IF EXISTS students;")
         self.db.execute("DROP TABLE IF EXISTS rooms;")
         self.db.commit()
@@ -62,13 +73,14 @@ class SchemaService:
             );
         """)
 
-        self.db.execute("CREATE INDEX idx_students_room_id ON students(room_id);")
         self.db.execute("CREATE INDEX idx_students_sex ON students(sex);")
         self.db.execute("CREATE INDEX idx_students_birthday ON students(birthday);")
-
         self.db.commit()
 
 
+# ===============================
+# Data Loader
+# ===============================
 class DataLoader:
     @staticmethod
     def load_json(file_path):
@@ -76,6 +88,9 @@ class DataLoader:
             return json.load(f)
 
 
+# ===============================
+# Data Inserter
+# ===============================
 class DataInserter:
     def __init__(self, db: DatabaseManager):
         self.db = db
@@ -99,11 +114,19 @@ class DataInserter:
                 sex=VALUES(sex),
                 room_id=VALUES(room_id)
         """
-        params = [(s["id"], s["name"], s["birthday"][:10], s["sex"], s["room"]) for s in students]
+        params = []
+        for s in students:
+            birthday_dt = datetime.strptime(s["birthday"], "%Y-%m-%dT%H:%M:%S.%f")
+            birthday_str = birthday_dt.strftime("%Y-%m-%d")
+            params.append((s["id"], s["name"], birthday_str, s["sex"], s["room"]))
+
         self.db.executemany(query, params)
         self.db.commit()
 
 
+# ===============================
+# Query Service
+# ===============================
 class QueryService:
     def __init__(self, db: DatabaseManager):
         self.db = db
@@ -118,40 +141,17 @@ class QueryService:
         self.db.execute(query)
         return self.db.fetchall()
 
-    def list_rooms_with_student_counts(self):
-        query = """
-            SELECT
-                r.id AS room_id,
-                r.name AS room_name,
-                COUNT(s.id) AS student_count
-            FROM
-                rooms r
-            LEFT JOIN
-                students s ON r.id = s.room_id
-            GROUP BY
-                r.id, r.name
-            ORDER BY
-                r.id;
-        """
-        self.db.execute(query)
-        return self.db.fetchall()
-
     def top_5_rooms_smallest_avg_age(self):
         query = """
             SELECT
                 r.id AS room_id,
                 r.name AS room_name,
                 AVG(TIMESTAMPDIFF(YEAR, s.birthday, CURDATE())) AS avg_age
-            FROM
-                rooms r
-            JOIN
-                students s ON r.id = s.room_id
-            GROUP BY
-                r.id, r.name
-            HAVING
-                COUNT(s.id) > 0
-            ORDER BY
-                avg_age ASC
+            FROM rooms r
+            JOIN students s ON r.id = s.room_id
+            GROUP BY r.id, r.name
+            HAVING COUNT(s.id) > 0
+            ORDER BY avg_age ASC
             LIMIT 5;
         """
         self.db.execute(query)
@@ -162,22 +162,19 @@ class QueryService:
             SELECT
                 r.id AS room_id,
                 r.name AS room_name,
-                MAX(TIMESTAMPDIFF(YEAR, s.birthday, CURDATE())) - MIN(TIMESTAMPDIFF(YEAR, s.birthday, CURDATE())) AS age_difference
-            FROM
-                rooms r
-            JOIN
-                students s ON r.id = s.room_id
-            GROUP BY
-                r.id, r.name
-            HAVING
-                COUNT(s.id) > 1
-            ORDER BY
-                age_difference DESC
+                MAX(TIMESTAMPDIFF(YEAR, s.birthday, CURDATE())) - 
+                MIN(TIMESTAMPDIFF(YEAR, s.birthday, CURDATE())) AS age_difference
+            FROM rooms r
+            JOIN students s ON r.id = s.room_id
+            GROUP BY r.id, r.name
+            HAVING COUNT(s.id) > 1
+            ORDER BY age_difference DESC
             LIMIT 5;
         """
         self.db.execute(query)
         return self.db.fetchall()
 
+    # --- Fixed Queries for Mixed Sex Rooms ---
     def count_rooms_with_mixed_sexes(self):
         query = """
             SELECT COUNT(*) 
@@ -185,36 +182,46 @@ class QueryService:
                 SELECT r.id
                 FROM rooms r
                 JOIN students s ON r.id = s.room_id
-                WHERE s.sex IN ('M', 'F')
+                WHERE s.sex IN ('M','F')
                 GROUP BY r.id
-                HAVING COUNT(DISTINCT s.sex) > 1
+                HAVING SUM(s.sex = 'M') > 0
+                   AND SUM(s.sex = 'F') > 0
             ) AS mixed_rooms;
         """
         self.db.execute(query)
-        count = self.db.fetchall()
-        return count[0][0] if count else 0
+        result = self.db.fetchall()
+        return result[0][0] if result else 0
 
     def list_rooms_with_mixed_sexes(self, limit=10):
+        limit = int(limit)
         query = f"""
-            SELECT r.id, r.name, COUNT(DISTINCT s.sex) AS sex_count
+            SELECT r.id, r.name,
+                   SUM(s.sex = 'M') AS males,
+                   SUM(s.sex = 'F') AS females,
+                   COUNT(s.id) AS total_students
             FROM rooms r
             JOIN students s ON r.id = s.room_id
-            WHERE s.sex IN ('M', 'F')
+            WHERE s.sex IN ('M','F')
             GROUP BY r.id, r.name
-            HAVING sex_count > 1
+            HAVING males > 0 AND females > 0
+            ORDER BY r.id
             LIMIT {limit};
         """
         self.db.execute(query)
         return self.db.fetchall()
 
 
+# ===============================
+# Main
+# ===============================
 def main():
     db = DatabaseManager(DB_CONFIG)
-    output_file = "output.txt"
+    output_file = BASE_DIR / "output.txt"
 
     try:
+        # Reset schema and load data
         schema_service = SchemaService(db)
-        schema_service.create_schema()
+        schema_service.reset_schema()
 
         data_loader = DataLoader()
         rooms = data_loader.load_json(ROOMS_FILE)
@@ -226,10 +233,12 @@ def main():
 
         query_service = QueryService(db)
 
+        # Write results
         with open(output_file, "w", encoding="utf-8") as f:
             total_rooms, total_students = query_service.summary_rooms_and_students()[0]
             f.write(f"Summary:\nTotal Rooms: {total_rooms}\nTotal Students: {total_students}\n\n")
-            f.write("\nTop 5 rooms with smallest average student age:\n")
+
+            f.write("Top 5 rooms with smallest average student age:\n")
             for row in query_service.top_5_rooms_smallest_avg_age():
                 f.write(f"Room ID: {row[0]}, Name: {row[1]}, Avg Age: {row[2]:.2f}\n")
 
@@ -239,9 +248,9 @@ def main():
 
             mixed_count = query_service.count_rooms_with_mixed_sexes()
             f.write(f"\nRooms where students of different sexes live together: {mixed_count} rooms found\n")
-            f.write("Listing first 10 such rooms:\n")
+            f.write("Listing first 10 such rooms (males/females/total):\n")
             for row in query_service.list_rooms_with_mixed_sexes(limit=10):
-                f.write(f"Room ID: {row[0]}, Name: {row[1]}, Sex Types: {row[2]}\n")
+                f.write(f"Room ID: {row[0]}, Name: {row[1]}, Males: {row[2]}, Females: {row[3]}, Total: {row[4]}\n")
 
         print(f"Report written to {output_file}")
 
