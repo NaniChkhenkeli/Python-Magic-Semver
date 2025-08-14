@@ -3,29 +3,27 @@ info:
   title: Student & Room Management API
   description: |
     REST API for managing students, rooms, and their relationships.
-    Includes CRUD for students and rooms, listing students in a room,
-    and moving a student between rooms.
+    Basic CRUD for students and rooms, plus some relationship stuff.
   version: 1.0.0
 servers:
   - url: https://api.example.com/v1
     description: Production
   - url: http://localhost:8080/v1
-    description: Local
+    description: Local dev
 
 tags:
   - name: Students
-    description: Operations related to students
+    description: Student operations
   - name: Rooms
-    description: Operations related to rooms
+    description: Room operations
   - name: Relationships
-    description: Endpoints that relate students and rooms
 
 paths:
   /students:
     get:
       tags: [Students]
       summary: Get all students
-      description: Retrieve students with optional pnavigation, filtering and sorting.
+      description: Retrieve students with optional pagination, filtering and sorting.
       parameters:
         - in: query
           name: page
@@ -42,12 +40,10 @@ paths:
         - in: query
           name: sex
           description: Filter by sex
-          schema:
-            type: string
-            enum: [M, F]
+          schema: { type: string, enum: [M, F] }
         - in: query
           name: roomId
-          description: Filter by room id (students currently assigned to this room)
+          description: Filter by room id
           schema: { type: integer, minimum: 0 }
         - in: query
           name: sort
@@ -81,8 +77,16 @@ paths:
                         sex: "M"
                         roomId: 743
                     meta: { page: 1, limit: 20, total: 2 }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
+        "400":
+          description: Bad request - invalid params
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
     post:
       tags: [Students]
@@ -113,9 +117,21 @@ paths:
                     birthday: "2001-08-25T00:00:00Z"
                     sex: "M"
                     roomId: 227
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: Duplicate student
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /students/{id}:
@@ -167,10 +183,22 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Student" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/StudentNotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
     patch:
@@ -194,9 +222,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Student" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/StudentNotFound" }
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "422":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
     delete:
@@ -251,7 +286,11 @@ paths:
                     birthday: "2011-08-22T00:00:00Z"
                     sex: "M"
                     roomId: 3
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404":
           description: Student or room not found
           content:
@@ -283,7 +322,11 @@ paths:
                     details: "Capacity 30, current 30"
                     requestId: "req_456"
                     timestamp: "2025-08-14T12:00:02Z"
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "422":
+          description: Unprocessable entity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /rooms:
@@ -363,7 +406,11 @@ paths:
                     id: 6
                     name: "Room #6"
                     capacity: 24
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409":
           description: room with the same name already exists
           content:
@@ -377,7 +424,11 @@ paths:
                     details: "Room #6 already exists"
                     requestId: "req_dup1"
                     timestamp: "2025-08-14T12:10:00Z"
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /rooms/{roomId}:
@@ -417,7 +468,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Room" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/RoomNotFound" }
         "409":
           description: Unique constraint violation
@@ -431,7 +486,11 @@ paths:
                     message: "Room name must be unique"
                     requestId: "req_dup2"
                     timestamp: "2025-08-14T12:11:00Z"
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
     patch:
@@ -450,9 +509,15 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Room" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/RoomNotFound" }
-        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "422":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationError" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
     delete:
@@ -714,10 +779,10 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
           examples:
-            invalid_pnavigation:
+            invalid_pagination:
               value:
-                errorCode: INVALID_pnavigation
-                message: "Invalid pnavigation parameters"
+                errorCode: INVALID_PAGINATION
+                message: "Invalid pagination parameters"
                 details: "page must be >= 1; limit must be between 1 and 100"
                 requestId: "req_bad1"
                 timestamp: "2025-08-14T12:00:00Z"

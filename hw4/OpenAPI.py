@@ -1,4 +1,4 @@
-##  day 1: swagger documentation for students API
+##  day 1: full swagger documentation for students API
 ## all student CRUD endpoints documented
 ## student-related error cases defined
 ## example responses for successful student operations
