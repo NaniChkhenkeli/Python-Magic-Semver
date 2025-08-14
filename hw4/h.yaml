@@ -365,7 +365,7 @@ paths:
                     capacity: 24
         "400": { $ref: "#/components/responses/BadRequest" }
         "409":
-          description: A room with the same name already exists
+          description: room with the same name already exists
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -650,7 +650,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Student" }
         meta:
-          $ref: "#/components/schemas/pnavigationMeta"
+          $ref: "#/components/schemas/Meta"
 
     PaginatedRooms:
       type: object
@@ -659,9 +659,9 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Room" }
         meta:
-          $ref: "#/components/schemas/pnavigationMeta"
+          $ref: "#/components/schemas/Meta"
 
-    pnavigationMeta:
+    Meta:
       type: object
       properties:
         page: { type: integer, example: 1 }
