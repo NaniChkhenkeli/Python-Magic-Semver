@@ -58,7 +58,7 @@ Generates 'output.txt' with:
 - Rooms housing both male and female students
 
 
-homework#3
+homework#4
 ===========================
 REST API for managing rooms, students and their assignments, includes CRUD operations and functionality to list students in specific rooms, move students between rooms and search/filter students and rooms. 
 
