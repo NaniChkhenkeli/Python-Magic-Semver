@@ -58,3 +58,33 @@ Generates 'output.txt' with:
 - Rooms housing both male and female students
 
 
+homework#3
+===========================
+REST API for managing rooms, students and their assignments, includes CRUD operations and functionality to list students in specific rooms, move students between rooms and search/filter students and rooms. 
+
+no authenticaation needed for this version.
+
+endpoints:
+- GET /students (list of all students)
+- POST / students (create new student)
+- GET /students/{id} (get student details)
+- PUT /students/{id} (full student update)
+- PATCH /students/{id} (partial student update)
+- DELETE /students/{id}
+- POST /students/{id}/move (move students to another room)
+- GET /rroms (list all rooms)
+- POST /rooms (create new room)
+- GET /rooms/{roomid} (get room details)
+- PUT /rooms/{roomId}
+- PATCH /rooms/{roomId}
+- DELTE /rooms/{roomId}
+- GET /rooms/{roomId}/students (list students in a room)
+
+error handling:
+(API returns appropriate HTTP status codes with JSON error responses)
+- errorCode (machine-readable code)
+- message (human readable code_
+- details (additional context)
+
+Documentation:
+Full OpenAPI specification available at /docs endpoint.
