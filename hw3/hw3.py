@@ -42,7 +42,6 @@ class SchemaService:
         self.db = db
 
     def create_and_reset_schema(self):
-        """Drops existing tables and creates new schema with indexes"""
         self.db.execute("DROP TABLE IF EXISTS students;")
         self.db.execute("DROP TABLE IF EXISTS rooms;")
         self.db.commit()
