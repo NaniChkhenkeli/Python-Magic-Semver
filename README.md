@@ -119,7 +119,7 @@ how to run:
    admin: http://127.0.0.1:8000/admin/
 
 Key files:
-models: courses/models.py (database structure)
-API views: courses/views.py (business logic)
-permissions: courses/permissions.py (role-based access)
-URLs: courses/urls.py (API endpoints)
+- models: courses/models.py (database structure)
+- API views: courses/views.py (business logic)
+- permissions: courses/permissions.py (role-based access)
+- URLs: courses/urls.py (API endpoints)
