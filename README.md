@@ -88,3 +88,8 @@ error handling:
 
 Documentation:
 Full OpenAPI specification available at /docs endpoint.
+
+
+homework#5
+===========================
+this project is django REST framework API to manage online courses with teachers/student roles, provides CRUD operations for courses, lectures, homework and grading.
