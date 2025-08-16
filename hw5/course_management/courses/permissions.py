@@ -47,11 +47,10 @@ class IsSubmissionOwnerOrTeacher(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         course = obj.assignment.lecture.course
         
-        # Students can only access their own submissions
+        # students can only access their own submissions
         if request.user.role == 'student':
             return obj.student == request.user
         
-        # Teachers can access all submissions in their courses
         return (request.user in course.teachers.all() or 
                request.user == course.created_by)
 

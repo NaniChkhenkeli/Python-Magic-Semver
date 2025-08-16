@@ -22,7 +22,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_yasg',
     
-    'courses',  # Removed 'core' and 'assignments' as they don't exist
+    'courses',
 ]
 
 MIDDLEWARE = [

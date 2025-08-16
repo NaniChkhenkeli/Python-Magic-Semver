@@ -11,10 +11,9 @@ router.register(r'grades', views.GradeViewSet, basename='grade')
 router.register(r'grade-comments', views.GradeCommentViewSet, basename='grade-comment')
 
 urlpatterns = [
-    # Authentication endpoints
+    # authentication endpoints
     path('auth/register/', views.RegisterView.as_view(), name='register'),
     path('auth/login/', views.LoginView.as_view(), name='login'),
     
-    # API Router
     path('', include(router.urls)),
 ]

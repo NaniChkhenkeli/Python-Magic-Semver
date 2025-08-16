@@ -21,7 +21,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 class UserLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()  # Changed from username to email
+    email = serializers.EmailField()  
     password = serializers.CharField(write_only=True)
     
     def validate(self, attrs):
@@ -29,7 +29,7 @@ class UserLoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         
         if email and password:
-            user = authenticate(username=email, password=password)  # Django's authenticate uses username parameter
+            user = authenticate(username=email, password=password)  
             if not user:
                 raise serializers.ValidationError('Invalid credentials')
             attrs['user'] = user

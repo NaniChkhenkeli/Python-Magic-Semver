@@ -11,6 +11,5 @@ class CoreConfig(AppConfig):
         Import signal handlers when the app is ready.
         This method is called when Django starts.
         """
-        # Import any signal handlers here if needed in the future
-        # Example: from . import signals
+       
         pass
