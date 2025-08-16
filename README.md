@@ -88,3 +88,38 @@ error handling:
 
 Documentation:
 Full OpenAPI specification available at /docs endpoint.
+
+
+homework#5
+===========================
+this project is django REST framework API to manage online courses with teachers/student roles, provides CRUD operations and structures learning environment.
+
+includes:
+- user roles and authentication, teachers and students can register and log in.
+- teachers can create, update, delete courses, lectures can be added with presentation files.
+- teachers can assign homework to lectures, students submit solutions and then teachers grade, add feedback.
+- students can't modify courses/lectures, teachers only manage their own courses.
+
+How it works:
+  - backend: django + DRF
+  - db: SQLite(default)
+  - API Docs: swagger/OpenAPI
+  - authentication: token-based.
+
+how to run: 
+1. install dependencies:
+   pip install django djangorestframework drf-yasg
+2. apply migrations:
+   python manage.py migrate
+3. start the server:
+   python manage.py runserver
+4. access:
+   API: http://127.0.0.1:8000/api/v1/
+   docs: http://127.0.0.1:8000/swagger/
+   admin: http://127.0.0.1:8000/admin/
+
+Key files:
+models: courses/models.py (database structure)
+API views: courses/views.py (business logic)
+permissions: courses/permissions.py (role-based access)
+URLs: courses/urls.py (API endpoints)
