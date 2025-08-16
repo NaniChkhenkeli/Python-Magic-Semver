@@ -3,10 +3,11 @@
 import os
 import sys
 
-
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'course_management.settings')
+    # Set the default settings module
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
+    
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
@@ -15,8 +16,13 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+    
+    # Add the project directory to the Python path
+    project_path = os.path.dirname(os.path.abspath(__file__))
+    if project_path not in sys.path:
+        sys.path.append(project_path)
+    
     execute_from_command_line(sys.argv)
-
 
 if __name__ == '__main__':
     main()
