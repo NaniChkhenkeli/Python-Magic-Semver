@@ -36,7 +36,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'project.urls'  # Changed from 'lms_project.urls'
+ROOT_URLCONF = 'project.urls'  
 
 TEMPLATES = [
     {
@@ -54,7 +54,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'project.wsgi.application'  # Changed from 'lms_project.wsgi.application'
+WSGI_APPLICATION = 'project.wsgi.application'  
 
 DATABASES = {
     'default': {
@@ -128,5 +128,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'admin@lms.example.com'
 
 FILE_UPLOAD_PERMISSIONS = 0o644
-FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400  # 25MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400  # 25MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400  
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400  
