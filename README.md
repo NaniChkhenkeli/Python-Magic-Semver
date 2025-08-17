@@ -114,9 +114,9 @@ how to run:
 3. start the server:
    python manage.py runserver
 4. access:
-   API: http://127.0.0.1:8000/api/v1/
-   docs: http://127.0.0.1:8000/swagger/
-   admin: http://127.0.0.1:8000/admin/
+   - API: http://127.0.0.1:8000/api/v1/
+   - docs: http://127.0.0.1:8000/swagger/
+   - admin: http://127.0.0.1:8000/admin/
 
 Key files:
 - models: courses/models.py (database structure)
