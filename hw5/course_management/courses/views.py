@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
+from rest_framework import serializers
 from .models import User, Course, Lecture, HomeworkAssignment, HomeworkSubmission, Grade, GradeComment
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserSerializer,
@@ -56,20 +57,44 @@ class CourseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'teacher':
+            # Teachers see courses they created or teach
             return Course.objects.filter(
                 models.Q(created_by=user) | models.Q(teachers=user)
             ).distinct()
         else:  # student
+            # Students see courses they're enrolled in AND active courses they can potentially enroll in
             return Course.objects.filter(
                 models.Q(students=user) | models.Q(is_active=True)
             ).distinct()
     
     def perform_create(self, serializer):
+        # Only teachers can create courses
+        if self.request.user.role != 'teacher':
+            raise permissions.PermissionDenied("Only teachers can create courses")
         course = serializer.save(created_by=self.request.user)
         course.teachers.add(self.request.user)
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def enroll(self, request, pk=None):
+        """Allow students to enroll themselves in a course"""
+        course = self.get_object()
+        user = request.user
+        
+        if user.role != 'student':
+            return Response({'error': 'Only students can enroll in courses'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not course.is_active:
+            return Response({'error': 'Course is not active'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user in course.students.all():
+            return Response({'error': 'Already enrolled in this course'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        course.students.add(user)
+        return Response({'message': 'Successfully enrolled in course'})
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def enroll_student(self, request, pk=None):
+        """Allow teachers to enroll students"""
         course = self.get_object()
         student_id = request.data.get('student_id')
         
@@ -78,6 +103,8 @@ class CourseViewSet(viewsets.ModelViewSet):
         
         try:
             student = User.objects.get(id=student_id, role='student')
+            if student in course.students.all():
+                return Response({'error': 'Student already enrolled'}, status=status.HTTP_400_BAD_REQUEST)
             course.students.add(student)
             return Response({'message': f'Student {student.email} enrolled successfully'})
         except User.DoesNotExist:
@@ -108,6 +135,8 @@ class CourseViewSet(viewsets.ModelViewSet):
         
         try:
             teacher = User.objects.get(id=teacher_id, role='teacher')
+            if teacher in course.teachers.all():
+                return Response({'error': 'Teacher already added'}, status=status.HTTP_400_BAD_REQUEST)
             course.teachers.add(teacher)
             return Response({'message': f'Teacher {teacher.email} added successfully'})
         except User.DoesNotExist:
@@ -124,9 +153,20 @@ class LectureViewSet(viewsets.ModelViewSet):
                 models.Q(course__created_by=user) | models.Q(course__teachers=user)
             ).distinct()
         else:  # student
+            # Students only see lectures from courses they're enrolled in
             return Lecture.objects.filter(course__students=user)
     
     def perform_create(self, serializer):
+        # Validate that the teacher can create lectures for this course
+        course = serializer.validated_data['course']
+        user = self.request.user
+        
+        if user.role != 'teacher':
+            raise permissions.PermissionDenied("Only teachers can create lectures")
+        
+        if user != course.created_by and user not in course.teachers.all():
+            raise permissions.PermissionDenied("You can only create lectures for your own courses")
+        
         serializer.save()
 
 class HomeworkAssignmentViewSet(viewsets.ModelViewSet):
@@ -141,7 +181,21 @@ class HomeworkAssignmentViewSet(viewsets.ModelViewSet):
                 models.Q(lecture__course__teachers=user)
             ).distinct()
         else:  # student
+            # Students only see homework from courses they're enrolled in
             return HomeworkAssignment.objects.filter(lecture__course__students=user)
+    
+    def perform_create(self, serializer):
+        # Validate that the teacher can create homework for this lecture
+        lecture = serializer.validated_data['lecture']
+        user = self.request.user
+        
+        if user.role != 'teacher':
+            raise permissions.PermissionDenied("Only teachers can create homework assignments")
+        
+        if user != lecture.course.created_by and user not in lecture.course.teachers.all():
+            raise permissions.PermissionDenied("You can only create homework for your own courses")
+        
+        serializer.save()
 
 class HomeworkSubmissionViewSet(viewsets.ModelViewSet):
     serializer_class = HomeworkSubmissionSerializer
@@ -158,7 +212,21 @@ class HomeworkSubmissionViewSet(viewsets.ModelViewSet):
             return HomeworkSubmission.objects.filter(student=user)
     
     def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
+        user = self.request.user
+        assignment = serializer.validated_data['assignment']
+        
+        if user.role != 'student':
+            raise permissions.PermissionDenied("Only students can submit homework")
+        
+        # Validate student is enrolled in the course
+        if user not in assignment.lecture.course.students.all():
+            raise permissions.PermissionDenied("You must be enrolled in the course to submit homework")
+        
+        # Check if submission already exists
+        if HomeworkSubmission.objects.filter(student=user, assignment=assignment).exists():
+            raise serializers.ValidationError("You have already submitted homework for this assignment")
+        
+        serializer.save(student=user)
 
 class GradeViewSet(viewsets.ModelViewSet):
     serializer_class = GradeSerializer
@@ -175,7 +243,18 @@ class GradeViewSet(viewsets.ModelViewSet):
             return Grade.objects.filter(submission__student=user)
     
     def perform_create(self, serializer):
-        serializer.save(graded_by=self.request.user)
+        user = self.request.user
+        submission = serializer.validated_data['submission']
+        
+        if user.role != 'teacher':
+            raise permissions.PermissionDenied("Only teachers can assign grades")
+        
+        # Validate teacher can grade this submission
+        course = submission.assignment.lecture.course
+        if user != course.created_by and user not in course.teachers.all():
+            raise permissions.PermissionDenied("You can only grade submissions for your own courses")
+        
+        serializer.save(graded_by=user)
 
 class GradeCommentViewSet(viewsets.ModelViewSet):
     serializer_class = GradeCommentSerializer
@@ -189,7 +268,20 @@ class GradeCommentViewSet(viewsets.ModelViewSet):
                 models.Q(grade__submission__assignment__lecture__course__teachers=user)
             ).distinct()
         else:  # student
+            # Students can only see comments on their own grades
             return GradeComment.objects.filter(grade__submission__student=user)
     
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        user = self.request.user
+        grade = serializer.validated_data['grade']
+        
+        # Both students and teachers can add comments, but validate access
+        if user.role == 'student':
+            if grade.submission.student != user:
+                raise permissions.PermissionDenied("You can only comment on your own grades")
+        else:  # teacher
+            course = grade.submission.assignment.lecture.course
+            if user != course.created_by and user not in course.teachers.all():
+                raise permissions.PermissionDenied("You can only comment on grades for your own courses")
+        
+        serializer.save(author=user)
