@@ -16,6 +16,8 @@ from .permissions import (
     IsTeacherOrReadOnly, IsCourseTeacherOrReadOnly, IsStudentOfCourse,
     IsSubmissionOwnerOrTeacher, CanGradeSubmission
 )
+from rest_framework.exceptions import PermissionDenied
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -67,7 +69,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         if self.request.user.role != 'teacher':
-            raise permissions.PermissionDenied("Only teachers can create courses")
+            raise PermissionDenied("Only teachers can create courses")
         course = serializer.save(created_by=self.request.user)
         course.teachers.add(self.request.user)
     
