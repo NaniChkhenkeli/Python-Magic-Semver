@@ -123,4 +123,5 @@ Key files:
 - API views: courses/views.py (business logic)
 - permissions: courses/permissions.py (role-based access)
 - URLs: courses/urls.py (API endpoints)
-- testing: python manage.py test courses
+- testing:
+  python manage.py test courses
