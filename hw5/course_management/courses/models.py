@@ -1,8 +1,9 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-import uuid
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
+
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -23,32 +24,31 @@ class User(AbstractUser):
         verbose_name_plural = _('users')
     
     def __str__(self):
-        return f"{self.email} ({self.get_role_display()})"
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name if full_name else self.email
+
 
 class Course(models.Model):
-    id = models.UUIDField(_('id'), primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(_('title'), max_length=200)
     description = models.TextField(_('description'))
-    created_by = models.ForeignKey(
+    instructor = models.ForeignKey(
         User,
-        verbose_name=_('created by'),
+        verbose_name=_('instructor'),
         on_delete=models.CASCADE,
-        related_name='created_courses'
-    )
-    teachers = models.ManyToManyField(
-        User,
-        verbose_name=_('teachers'),
-        related_name='teaching_courses',
+        related_name='taught_courses',
         limit_choices_to={'role': 'teacher'}
     )
-    students = models.ManyToManyField(
+    additional_teachers = models.ManyToManyField(
         User,
-        verbose_name=_('students'),
-        related_name='enrolled_courses',
-        limit_choices_to={'role': 'student'},
+        verbose_name=_('additional teachers'),
+        related_name='co_taught_courses',
+        limit_choices_to={'role': 'teacher'},
         blank=True
     )
+    max_students = models.PositiveIntegerField(_('maximum students'), default=50)
     is_active = models.BooleanField(_('is active'), default=True)
+    start_date = models.DateField(_('start date'), null=True, blank=True)
+    end_date = models.DateField(_('end date'), null=True, blank=True)
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
@@ -59,24 +59,61 @@ class Course(models.Model):
     
     def __str__(self):
         return self.title
+    
+    def clean(self):
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError('Start date cannot be after end date.')
+    
+    @property
+    def all_teachers(self):
+        teacher_ids = [self.instructor.id]
+        teacher_ids.extend(list(self.additional_teachers.values_list('id', flat=True)))
+        return User.objects.filter(id__in=teacher_ids)
+    
+    @property
+    def student_count(self):
+        return self.enrollments.filter(is_active=True).count()
+    
+    @property
+    def is_full(self):
+        return self.student_count >= self.max_students
+    
+    def can_enroll_student(self):
+        return self.is_active and not self.is_full
+
+
+class Enrollment(models.Model):
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={'role': 'student'}
+    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
+    enrolled_at = models.DateTimeField(_('enrolled at'), auto_now_add=True)
+    is_active = models.BooleanField(_('is active'), default=True)
+    
+    class Meta:
+        unique_together = ['student', 'course']
+        verbose_name = _('enrollment')
+        verbose_name_plural = _('enrollments')
+    
+    def __str__(self):
+        return f"{self.student} enrolled in {self.course.title}"
+
 
 class Lecture(models.Model):
-    id = models.UUIDField(_('id'), primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(_('title'), max_length=200)
-    topic = models.TextField(_('topic'))
+    description = models.TextField(_('description'), blank=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lectures')
     presentation_file = models.FileField(
         _('presentation file'),
-        upload_to='presentations/',
+        upload_to='lectures/presentations/',
         null=True,
-        blank=True
-    )
-    course = models.ForeignKey(
-        Course,
-        verbose_name=_('course'),
-        on_delete=models.CASCADE,
-        related_name='lectures'
+        blank=True,
+        help_text='Upload presentation slides (PDF, PPT, etc.)'
     )
     order = models.PositiveIntegerField(_('order'), default=1)
+    is_published = models.BooleanField(_('is published'), default=True)
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
@@ -87,25 +124,29 @@ class Lecture(models.Model):
         verbose_name_plural = _('lectures')
     
     def __str__(self):
-        return f"{self.course.title} - {self.title}"
+        return f"{self.course.title} - Lecture {self.order}: {self.title}"
+    
+    @property
+    def has_presentation(self):
+        return bool(self.presentation_file)
+
 
 class HomeworkAssignment(models.Model):
-    id = models.UUIDField(_('id'), primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(_('title'), max_length=200)
     description = models.TextField(_('description'))
     lecture = models.ForeignKey(
         Lecture,
-        verbose_name=_('lecture'),
         on_delete=models.CASCADE,
-        related_name='homework_assignments',
-        help_text=_('Select the lecture this assignment belongs to')
+        related_name='assignments'
     )
     due_date = models.DateTimeField(
         _('due date'),
         null=True,
         blank=True,
-        help_text=_('Format: YYYY-MM-DD HH:MM')
+        help_text=_('Leave empty for no deadline')
     )
+    max_points = models.PositiveIntegerField(_('maximum points'), default=100)
+    is_active = models.BooleanField(_('is active'), default=True)
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
@@ -116,22 +157,35 @@ class HomeworkAssignment(models.Model):
     
     def __str__(self):
         return f"{self.lecture.title} - {self.title}"
+    
+    @property
+    def is_past_due(self):
+        if not self.due_date:
+            return False
+        from django.utils import timezone
+        return timezone.now() > self.due_date
+
 
 class HomeworkSubmission(models.Model):
-    id = models.UUIDField(_('id'), primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(
         User,
-        verbose_name=_('student'),
         on_delete=models.CASCADE,
-        related_name='homework_submissions'
+        related_name='submissions',
+        limit_choices_to={'role': 'student'}
     )
     assignment = models.ForeignKey(
         HomeworkAssignment,
-        verbose_name=_('assignment'),
         on_delete=models.CASCADE,
         related_name='submissions'
     )
-    submission_text = models.TextField(_('submission text'))
+    content = models.TextField(_('submission content'))
+    attachment = models.FileField(
+        _('attachment'),
+        upload_to='homework/submissions/',
+        null=True,
+        blank=True,
+        help_text='Optional file attachment'
+    )
     submitted_at = models.DateTimeField(_('submitted at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
@@ -142,26 +196,35 @@ class HomeworkSubmission(models.Model):
         verbose_name_plural = _('homework submissions')
     
     def __str__(self):
-        return f"{self.student.email} - {self.assignment.title}"
+        return f"{self.student} - {self.assignment.title}"
+    
+    @property
+    def is_late(self):
+        if not self.assignment.due_date:
+            return False
+        return self.submitted_at > self.assignment.due_date
+    
+    @property
+    def has_grade(self):
+        return hasattr(self, 'grade')
+
 
 class Grade(models.Model):
-    id = models.UUIDField(_('id'), primary_key=True, default=uuid.uuid4, editable=False)
     submission = models.OneToOneField(
         HomeworkSubmission,
-        verbose_name=_('submission'),
         on_delete=models.CASCADE,
         related_name='grade'
     )
-    grade_value = models.FloatField(
-        _('grade value'),
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    points_earned = models.FloatField(
+        _('points earned'),
+        validators=[MinValueValidator(0)]
     )
-    comments = models.TextField(_('comments'), blank=True)
+    feedback = models.TextField(_('feedback'), blank=True)
     graded_by = models.ForeignKey(
         User,
-        verbose_name=_('graded by'),
         on_delete=models.CASCADE,
-        related_name='assigned_grades'
+        related_name='grades_given',
+        limit_choices_to={'role': 'teacher'}
     )
     graded_at = models.DateTimeField(_('graded at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
@@ -171,21 +234,23 @@ class Grade(models.Model):
         verbose_name_plural = _('grades')
     
     def __str__(self):
-        return f"{self.submission.student.email} - {self.grade_value}"
+        return f"{self.submission.student} - {self.points_earned}/{self.submission.assignment.max_points}"
+    
+    @property
+    def percentage(self):
+        max_points = self.submission.assignment.max_points
+        if max_points == 0:
+            return 0
+        return round((self.points_earned / max_points) * 100, 2)
+    
+    def clean(self):
+        if self.points_earned > self.submission.assignment.max_points:
+            raise ValidationError('Points earned cannot exceed maximum points for assignment.')
+
 
 class GradeComment(models.Model):
-    id = models.UUIDField(_('id'), primary_key=True, default=uuid.uuid4, editable=False)
-    grade = models.ForeignKey(
-        Grade,
-        verbose_name=_('grade'),
-        on_delete=models.CASCADE,
-        related_name='discussion_comments'
-    )
-    author = models.ForeignKey(
-        User,
-        verbose_name=_('author'),
-        on_delete=models.CASCADE
-    )
+    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
     comment = models.TextField(_('comment'))
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     
@@ -195,4 +260,4 @@ class GradeComment(models.Model):
         verbose_name_plural = _('grade comments')
     
     def __str__(self):
-        return f"Comment by {self.author.email} on grade {self.grade.id}"
+        return f"Comment by {self.author} on {self.grade}"
